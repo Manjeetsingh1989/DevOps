@@ -1,1 +1,124 @@
+1. Grade Checker
+Take a score as input and print the grade based on the following:
+90+ : "A"
+80-89 : "B"
+70-79 : "C"
+60-69 : "D"
+Below 60 : "F"
+here we used a basic if else statement to carry out marks and all.
+
+Answer:
+score = int(input("Enter your score: "))
+if score >= 90:
+    print("Grade: A")
+elif score >= 80:
+    print("Grade: B")
+elif score >= 70:
+    print("Grade: C")
+elif score >= 60:
+    print("Grade: D")
+else:
+    print("Grade: F")
+
+
+
+##############################################################################################################
+2 Student Grades
+Create a dictionary where the keys are student names and the values are their grades. Allow the user to:
+Add a new student and grade.
+Update an existing student’s grade.
+Print all student grades.
+
+Used dictionary and basic operations. Using if else:
+
+
+# Student Grades Program (with default data)
+
+# Step 1: Create a dictionary with 4 default students
+grades = {
+    "Manjeet": "A",
+    "Riya": "B",
+    "Arjun": "C",
+    "Simran": "A"
+}
+
+while True:
+    print("\n--- Student Grades Menu ---")
+    print("1. Add a new student")
+    print("2. Update an existing student's grade")
+    print("3. Print all student grades")
+    print("4. Exit")
+
+    choice = input("Enter your choice (1-4): ")
+
+    # Step 2: Add a new student
+    if choice == '1':
+        name = input("Enter student's name: ")
+        if name in grades:
+            print("Student already exists.")
+        else:
+            grade = input("Enter grade: ")
+            grades[name] = grade
+            print(f"Added {name} with grade {grade}.")
+
+    # Step 3: Update an existing student's grade
+    elif choice == '2':
+        name = input("Enter student's name to update: ")
+        if name in grades:
+            grade = input("Enter new grade: ")
+            grades[name] = grade
+            print(f"Updated {name}'s grade to {grade}.")
+        else:
+            print("Student not found.")
+
+    # Step 4: Print all student grades
+    elif choice == '3':
+        if grades:
+            print("\n--- Student Grades ---")
+            for student, grade in grades.items():
+                print(f"{student}: {grade}")
+        else:
+            print("No student records found.")
+
+    # Step 5: Exit the program
+    elif choice == '4':
+        print("Exiting program. Goodbye!")
+        break
+
+    # Step 6: Invalid choice
+    else:
+        print("Invalid choice. Please enter 1-4.")
+
+
+##############################################################################################################
+3.Write to a File
+Write a program to create a text file and write some content to it.
+Using file functions like write and open.
+
+
+file = open("myfile.txt", "w")
+
+file.write("Hello, this is Manjeet's first file in Python!\n")
+file.write("File handling in Python is easy and powerful.\n")
+file.write("We are using open() and write() functions.\n")
+
+file.close()
+
+
+##############################################################################################################
+4. Read from a File
+  We used open in read mode and file.read to read and print to display.
+
+file = open("myfile.txt", "r")
+
+content = file.read()
+
+print("File Content:\n")
+print(content)
+
+file.close()
+
+
+Submission Guidelines -: Attach Screenshots or command along with explanation and submit in doc(google doc or microsoft doc) format or share github link
+
 
