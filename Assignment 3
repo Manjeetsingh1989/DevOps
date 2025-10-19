@@ -1,1 +1,277 @@
+1. Create a Flask application with an /api route. When this route is accessed, it should return a JSON list. 
+The data should be stored in a backend file, read from it, and sent as a response.
+  
+Answer:
+++++++++data.json++++++++++
+[
+  {"id": 1, "name": "Alice", "role": "developer"},
+  {"id": 2, "name": "Bob",   "role": "devops"},
+  {"id": 3, "name": "Cara",  "role": "designer"}
+]
+
+
+
+++++++++++++++++app.py file+++++++++++++++
+from flask import Flask, jsonify, abort
+import json
+from pathlib import Path
+
+app = Flask(__name__)
+
+# Path to backend file (data.json in same directory)
+DATA_FILE = Path(__file__).parent / 'data.json'
+
+def read_data():
+    """
+    Read and return the JSON array from DATA_FILE.
+    If file is missing or invalid, abort with HTTP 500 and message.
+    """
+    try:
+        with DATA_FILE.open('r', encoding='utf-8') as f:
+            data = json.load(f)
+            # enforce that the file contains a JSON list
+            if not isinstance(data, list):
+                raise ValueError("Backend data must be a JSON array (list).")
+            return data
+    except FileNotFoundError:
+        abort(500, description="Data file not found.")
+    except json.JSONDecodeError:
+        abort(500, description="Data file contains invalid JSON.")
+    except Exception as e:
+        abort(500, description=str(e))
+
+@app.route('/api', methods=['GET'])
+def api_list():
+    """
+    Read the backend file and return its contents as application/json.
+    """
+    data = read_data()
+    return jsonify(data)
+
+
+if __name__ == '__main__':
+    # Run Flask app on port 8000
+    app.run(debug=True, host='0.0.0.0', port=8000)
+
+
+
+
+
+++++++++++++++run the application+++++++
+
+Install Flask (if not installed):
+#pip install flask
+
+Save data.json and app.py in the same directory.
+Run the app:
+#python app.py
+
+open the browser
+http://127.0.0.1:8000/api
+
+
++++++++++++++++++++++++++++++++++++++++++END++++++++++++++++++++++++++++++++++++
+
+
+
+
+2. Create a form on the frontend that, when submitted, inserts data into MongoDB Atlas. Upon successful submission, the user should be redirected to 
+another page displaying the message "Data submitted successfully". If there's an error during submission, display the error on the same page without redirection.
+
+Answer:
++++++++++++++create a file #requirements.txt+++++++++++
+Flask>=2.0
+pymongo[srv]>=4.0
+python-dotenv>=1.0
+
+
++++++++Install+++++
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+++++++++Create a file #.env.example+++++++++
+# Replace the URI with your MongoDB Atlas connection string.
+# Example form (do NOT paste credentials here):
+# MONGODB_URI="mongodb+srv://<username>:<password>@cluster0.xxxxxx.mongodb.net/?retryWrites=true&w=majority"
+MONGODB_URI="your-mongodb-atlas-uri"
+
+# Database and collection to use
+MONGO_DB="mydatabase"
+MONGO_COLLECTION="mycollection"
+
+# Flask config
+FLASK_DEBUG=1
+FLASK_HOST=0.0.0.0
+FLASK_PORT=8000
+
++++++++++create a file #app.py+++++++++++
+
+import os
+from flask import Flask, render_template, request, redirect, url_for
+from pymongo import MongoClient
+from pymongo.errors import PyMongoError
+from dotenv import load_dotenv
+
+load_dotenv()  # loads variables from a .env file into environment
+
+MONGODB_URI = os.getenv("MONGODB_URI")
+MONGO_DB = os.getenv("MONGO_DB", os.getenv("MONGO_DB", "mydatabase"))
+MONGO_COLLECTION = os.getenv("MONGO_COLLECTION", "mycollection")
+
+if not MONGODB_URI:
+    raise RuntimeError("MONGODB_URI is not set. Fill it in .env or environment variables.")
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Initialize MongoDB client
+client = MongoClient(MONGODB_URI)
+db = client[MONGO_DB]
+collection = db[MONGO_COLLECTION]
+
+
+@app.route('/', methods=['GET'])
+def form():
+    """
+    Render the data submission form.
+    If an 'error' parameter is provided (sent when re-rendering after an exception),
+    the template will display it.
+    """
+    # No error by default
+    return render_template("form.html", error=None, form_data={})
+
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    """
+    Handle form submission:
+    - Read form data from request.form
+    - Validate required fields
+    - Insert into MongoDB collection
+    - On success: redirect to /success
+    - On error: render form.html with the error message (no redirect)
+    """
+    # Collect fields (modify these to match your desired schema)
+    name = request.form.get('name', '').strip()
+    email = request.form.get('email', '').strip()
+    role = request.form.get('role', '').strip()
+
+    # Save entered values for re-populating the form in case of an error
+    form_data = {"name": name, "email": email, "role": role}
+
+    # Simple validation
+    if not name:
+        return render_template("form.html", error="Name is required.", form_data=form_data)
+    if not email:
+        return render_template("form.html", error="Email is required.", form_data=form_data)
+
+    document = {
+        "name": name,
+        "email": email,
+        "role": role
+    }
+
+    try:
+        insert_result = collection.insert_one(document)
+        # Optionally check insert_result.inserted_id
+        return redirect(url_for('success'))
+    except PyMongoError as e:
+        # Log exception server-side if you have logging (omitted here)
+        return render_template("form.html", error=f"Database error: {e}", form_data=form_data)
+    except Exception as e:
+        return render_template("form.html", error=f"Unexpected error: {e}", form_data=form_data)
+
+
+@app.route('/success', methods=['GET'])
+def success():
+    """
+    Show success page after insertion.
+    """
+    return render_template("success.html")
+
+
+if __name__ == '__main__':
+    debug = bool(int(os.getenv("FLASK_DEBUG", "0")))
+    host = os.getenv("FLASK_HOST", "127.0.0.1")
+    port = int(os.getenv("FLASK_PORT", "8000"))
+    app.run(debug=debug, host=host, port=port)
+
+++++++++++++Create a Template #form.html+++++
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Submit Data</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .error { background: #ffe6e6; color: #900; padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem; }
+    .field { margin-bottom: 0.75rem; }
+    label { display:block; font-weight:600; margin-bottom:0.25rem; }
+    input[type="text"], input[type="email"], select { width:100%; padding:8px; box-sizing:border-box; }
+    button { padding: 0.6rem 1rem; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Submit your data</h1>
+
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form action="{{ url_for('submit') }}" method="post" autocomplete="off">
+      <div class="field">
+        <label for="name">Name *</label>
+        <input id="name" name="name" type="text" value="{{ form_data.name | default('') }}" required>
+      </div>
+
+      <div class="field">
+        <label for="email">Email *</label>
+        <input id="email" name="email" type="email" value="{{ form_data.email | default('') }}" required>
+      </div>
+
+      <div class="field">
+        <label for="role">Role</label>
+        <select id="role" name="role">
+          <option value="">-- select --</option>
+          <option value="developer" {% if form_data.role == 'developer' %}selected{% endif %}>Developer</option>
+          <option value="devops" {% if form_data.role == 'devops' %}selected{% endif %}>DevOps</option>
+          <option value="designer" {% if form_data.role == 'designer' %}selected{% endif %}>Designer</option>
+        </select>
+      </div>
+
+      <div>
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
+
+
+++++++++++++Create a Template #success.html+++++
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Success</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; padding: 2rem; display:flex; align-items:center; justify-content:center; height:100vh; }
+    .box { text-align:center; max-width:600px; }
+    a { color: #0a66c2; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Data submitted successfully</h1>
+    <p><a href="{{ url_for('form') }}">Submit more data</a></p>
+  </div>
+</body>
+</html>
+
 
